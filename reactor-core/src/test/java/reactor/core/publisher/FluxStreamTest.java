@@ -18,18 +18,31 @@ package reactor.core.publisher;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import org.junit.Test;
+import reactor.test.StepVerifier;
 import reactor.test.subscriber.AssertSubscriber;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class FluxStreamTest {
 
 	final List<Integer> source = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
 
+	@SuppressWarnings("ConstantConditions")
 	@Test(expected = NullPointerException.class)
-	public void nullIterable() {
-		Flux.fromStream(null);
+	public void nullStream() {
+		Flux.fromStream((Stream) null);
+	}
+
+	@SuppressWarnings("ConstantConditions")
+	@Test(expected = NullPointerException.class)
+	public void nullSupplier() {
+		Flux.fromStream((Supplier<Stream<?>>) null);
 	}
 
 	@Test
@@ -108,4 +121,31 @@ public class FluxStreamTest {
 		  .assertNotComplete()
 		  .assertError(IllegalStateException.class);
 	}
+
+	@Test
+	public void streamConsumedBySubscription() {
+		Stream<Integer> stream = source.stream();
+		Flux<Integer> flux = Flux.fromStream(stream);
+
+		StepVerifier.create(flux)
+		            .expectNextSequence(source)
+		            .verifyComplete();
+
+		StepVerifier.create(flux)
+		            .verifyError(IllegalStateException.class);
+	}
+
+	@Test
+	public void streamGeneratedPerSubscription() {
+		Flux<Integer> flux = Flux.fromStream(source::stream);
+
+		StepVerifier.create(flux)
+		            .expectNextSequence(source)
+		            .verifyComplete();
+
+		StepVerifier.create(flux)
+		            .expectNextSequence(source)
+		            .verifyComplete();
+	}
+
 }

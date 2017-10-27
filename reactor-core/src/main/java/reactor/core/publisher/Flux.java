@@ -867,6 +867,12 @@ public abstract class Flux<T> implements Publisher<T> {
 	 * case of multiple subscriptions or re-subscription (like with {@link #repeat()} or
 	 * {@link #retry()}).
 	 * <p>
+	 * Most streams don't require you to close them so this operator won't call {@link Stream#close()}.
+	 * For the cases where closing is necessary (e.g. a Stream based on IO), the
+	 * recommended approach is to capture the Stream into a variable {@code s} and chain
+	 * the {@link #doFinally(Consumer)} operator:
+	 * <br>{@code Flux.fromStream(s).doFinally(it -> s.close());}
+	 * <p>
 	 * <img class="marble" src="https://raw.githubusercontent.com/reactor/reactor-core/v3.1.1.RELEASE/src/docs/marble/fromstream.png" alt="">
 	 * <p>
 	 * @param s the {@link Stream} to read data from
@@ -875,7 +881,31 @@ public abstract class Flux<T> implements Publisher<T> {
 	 * @return a new {@link Flux}
 	 */
 	public static <T> Flux<T> fromStream(Stream<? extends T> s) {
-		return onAssembly(new FluxStream<>(s));
+		Objects.requireNonNull(s, "Stream s must be provided");
+		return onAssembly(new FluxStream<>(() -> s));
+	}
+
+	/**
+	 * Create a {@link Flux} that emits the items contained in a {@link Stream} created by
+	 * the provided {@link Supplier} for each subscription.
+	 * <p>
+	 * Most streams don't require you to close them so this operator won't call {@link Stream#close()}.
+	 * For the cases where closing is necessary (e.g. a Stream based on IO), the
+	 * recommended approach is to replace this fromStream call with a
+	 * {@link #fromStream(Stream)} wrapped in a {@link #using(Callable, Function, Consumer)}
+	 * operator:
+	 * <br>{@code Flux.using(supplier::get, Flux::fromStream, Stream::close);}
+	 * <p>
+	 * <img class="marble" src="https://raw.githubusercontent.com/reactor/reactor-core/v3.1.1.RELEASE/src/docs/marble/fromstream.png" alt="">
+	 * <p>
+	 * @param streamSupplier the {@link Supplier} that generates the {@link Stream} from
+	 * which to read data
+	 * @param <T> The type of values in the source {@link Stream} and resulting Flux
+	 *
+	 * @return a new {@link Flux}
+	 */
+	public static <T> Flux<T> fromStream(Supplier<Stream<? extends T>> streamSupplier) {
+		return onAssembly(new FluxStream<>(streamSupplier));
 	}
 
 	/**
