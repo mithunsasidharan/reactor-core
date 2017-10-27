@@ -1011,6 +1011,62 @@ public class GuideTests {
 		StepVerifier.create(flux).expectNext(1, 2, 3).verifyComplete();
 	}
 
+	@Test
+	public void contextSimple1() {
+		String key = "key";
+		Mono<String> r = Mono.just("Hello")
+		                     .flatMap( s -> Mono.subscriberContext() //<2>
+		                                        .map( ctx -> s + " " + ctx.get(key))) //<3>
+		                     .subscriberContext(ctx -> ctx.put(key, "World")); //<1>
+
+		StepVerifier.create(r)
+		            .expectNext("Hello World") //<4>
+		            .verifyComplete();
+	}
+
+	@Test
+	public void contextSimple2() {
+		String key = "key";
+		Mono<String> r = Mono.just("Hello")
+		                     .subscriberContext(ctx -> ctx.put(key, "World")) //<1>
+		                     .flatMap( s -> Mono.subscriberContext()
+		                                        .map( ctx -> s + " " + ctx.getOrDefault(key, "Stranger")));  //<2>
+
+		StepVerifier.create(r)
+		            .expectNext("Hello Stranger") //<3>
+		            .verifyComplete();
+	}
+
+	@Test
+	public void contextSimple3() {
+		String key = "key";
+		Mono<String> r = Mono.just("Hello")
+		                .flatMap( s -> Mono.subscriberContext()
+		                                   .map( ctx -> s + " " + ctx.get(key)))
+		                .subscriberContext(ctx -> ctx.put(key, "Reactor")) //<1>
+		                .subscriberContext(ctx -> ctx.put(key, "World")); //<2>
+
+		StepVerifier.create(r)
+		            .expectNext("Hello Reactor") //<3>
+		            .verifyComplete();
+	}
+
+	@Test
+	public void contextSimple4() {
+		String key = "key";
+		Mono<String> r = Mono.just("Hello")
+		                     .flatMap( s -> Mono.subscriberContext()
+		                                        .map( ctx -> s + " " + ctx.get(key))) //<3>
+		                     .subscriberContext(ctx -> ctx.put(key, "Reactor")) //<2>
+		                     .flatMap( s -> Mono.subscriberContext()
+		                                        .map( ctx -> s + " " + ctx.get(key))) //<4>
+		                     .subscriberContext(ctx -> ctx.put(key, "World")); //<1>
+
+		StepVerifier.create(r)
+		            .expectNext("Hello Reactor World") //<5>
+		            .verifyComplete();
+	}
+
 	private static final String HTTP_CORRELATION_ID = "reactive.http.library.correlationId";
 
 	Mono<Tuple2<Integer, String>> doPut(String url, Mono<String> data) {
