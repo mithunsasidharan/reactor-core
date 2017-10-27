@@ -18,8 +18,6 @@ package reactor.core.publisher;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
@@ -146,6 +144,15 @@ public class FluxStreamTest {
 		StepVerifier.create(flux)
 		            .expectNextSequence(source)
 		            .verifyComplete();
+	}
+
+	@Test
+	public void nullSupplierErrorsAtSubscription() {
+		Flux<String> flux = new FluxStream<>(() -> null);
+
+		StepVerifier.create(flux)
+		            .verifyErrorSatisfies(t -> assertThat(t).isInstanceOf(NullPointerException.class)
+				            .hasMessage("The stream supplier returned a null Stream"));
 	}
 
 }
